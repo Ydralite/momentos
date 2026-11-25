@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#ffffff">
+<title>momentos · estudo</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="styles.css?v=1">
+</head>
+<body>
+<main id="app">
+
+  <!-- Já participou -->
+  <section id="screen-done-before" class="screen card-screen" hidden>
+    <div class="card">
+      <h1>Já participaste 🙌</h1>
+      <p>Obrigado! As tuas respostas já foram registadas neste dispositivo.</p>
+    </div>
+  </section>
+
+  <!-- Erro de configuração -->
+  <section id="screen-error" class="screen card-screen" hidden>
+    <div class="card">
+      <h1>Algo correu mal</h1>
+      <p id="error-text">Não foi possível preparar o feed.</p>
+    </div>
+  </section>
+
+  <!-- Introdução + consentimento -->
+  <section id="screen-intro" class="screen card-screen" hidden>
+    <div class="card">
+      <div class="wordmark big">momentos</div>
+      <h1>Ajuda-nos a testar um feed</h1>
+      <p>Estamos a testar um novo feed de fotografias. Vais ver <strong>10 publicações</strong>: percorre-as como farias no teu dia a dia — dá gosto, abre os comentários, passa à frente, o que te apetecer.</p>
+      <p>Demora cerca de 3 minutos. No fim há 5 perguntas rápidas.</p>
+      <p class="small">A participação é anónima. Registamos apenas a forma como interages com o feed (tempo em cada publicação, gostos e comentários abertos) e as tuas respostas, para um trabalho académico do Executive MBA do ISCTE.</p>
+      <button id="btn-start" class="btn primary" disabled>A preparar…</button>
+      <p class="hint">Funciona melhor no telemóvel.</p>
+    </div>
+  </section>
+
+  <!-- Perfil -->
+  <section id="screen-profile" class="screen card-screen" hidden>
+    <div class="card">
+      <h2>Antes de começar, duas perguntas rápidas</h2>
+      <fieldset class="choice-group" data-field="age_band">
+        <legend>Idade</legend>
+        <button type="button" class="choice" data-value="menos_25">Menos de 25</button>
+        <button type="button" class="choice" data-value="25_34">25–34</button>
+        <button type="button" class="choice" data-value="35_44">35–44</button>
+        <button type="button" class="choice" data-value="45_54">45–54</button>
+        <button type="button" class="choice" data-value="55_mais">55 ou mais</button>
+      </fieldset>
+      <fieldset class="choice-group" data-field="social_time">
+        <legend>Quanto tempo passas por dia nas redes sociais?</legend>
+        <button type="button" class="choice" data-value="menos_30min">Menos de 30 min</button>
+        <button type="button" class="choice" data-value="30_60min">30 min a 1 h</button>
+        <button type="button" class="choice" data-value="1_2h">1 a 2 h</button>
+        <button type="button" class="choice" data-value="mais_2h">Mais de 2 h</button>
+      </fieldset>
+      <button id="btn-profile" class="btn primary" disabled>Ir para o feed</button>
+    </div>
+  </section>
+
+  <!-- Feed -->
+  <section id="screen-feed" class="screen feed-screen" hidden>
+    <header class="topbar">
+      <div class="wordmark">momentos</div>
+      <div class="progress"><div class="progress-bar" id="progress-bar"></div></div>
+    </header>
+    <div id="feed-scroll" class="feed-scroll" tabindex="0"></div>
+    <div id="swipe-hint" class="swipe-hint">Desliza para cima ↑</div>
+  </section>
+
+  <!-- Questionário -->
+  <section id="screen-quiz" class="screen card-screen" hidden>
+    <div class="card" id="quiz-card"></div>
+  </section>
+
+  <!-- Revelação -->
+  <section id="screen-reveal" class="screen card-screen" hidden>
+    <div class="card" id="reveal-card"></div>
+  </section>
+
+  <!-- Folha de comentários / origem -->
+  <div id="sheet-backdrop" class="sheet-backdrop" hidden></div>
+  <div id="sheet" class="sheet" hidden role="dialog" aria-modal="true">
+    <div class="sheet-grip"></div>
+    <div class="sheet-head">
+      <span id="sheet-title"></span>
+      <button id="sheet-close" class="icon-btn" aria-label="Fechar">✕</button>
+    </div>
+    <div id="sheet-body" class="sheet-body"></div>
+  </div>
+
+</main>
+<script src="config.js?v=1"></script>
+<script src="manifest.js?v=1"></script>
+<script src="app.js?v=1"></script>
+</body>
+</html>
