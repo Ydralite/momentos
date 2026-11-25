@@ -1,7 +1,7 @@
 // Configuração do estudo PHOTO SAFE
 window.STUDY_CONFIG = {
   // 1) Cola aqui o URL da Web App do Google Apps Script (termina em /exec)
-  APPS_SCRIPT_URL: "",
+  APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbyjJTFX2sKMIT-sLoh9UjLonPN1aFqP4xdxoaKfz9KRbA_U6O_jSISgClLPReob4YvEYw/exec",
 
   // Muda isto se alterares o estudo depois de começar a recolher dados
   STUDY_VERSION: "v1",
