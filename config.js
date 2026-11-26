@@ -4,7 +4,7 @@ window.STUDY_CONFIG = {
   APPS_SCRIPT_URL: "https://script.google.com/macros/s/AKfycbyjJTFX2sKMIT-sLoh9UjLonPN1aFqP4xdxoaKfz9KRbA_U6O_jSISgClLPReob4YvEYw/exec",
 
   // Muda isto se alterares o estudo depois de começar a recolher dados
-  STUDY_VERSION: "v1",
+  STUDY_VERSION: "v2",
 
   // Desenho experimental
   FEEDS: [20, 50, 80],          // % de imagens geradas por IA em cada feed
