@@ -58,6 +58,7 @@ fotos/
 | posts_seen, feed_completed, feed_ms | how far they got and total time in the feed |
 | likes, likes_ai, likes_real, comments_opened, stamp_taps | totals |
 | quiz_completed, q1_sem_selo … q5_texto | quiz (q2/q3 on a 1–5 scale; q5 free text) |
+| q0_quantas_ia, ai_real | guess of how many of the 10 images were AI (asked first, before PHOTO SAFE is explained) vs. the actual number |
 | device, viewport, user_agent, started_at | context |
 
 **publicacoes**: one row per person × post
@@ -73,6 +74,9 @@ fotos/
 | stamp_taps, stamp_ms | taps on the PHOTO SAFE stamp; time spent in the origin panel |
 
 Rows are rewritten as the person moves through the study (no duplicates). An older snapshot never overwrites a newer one.
+
+## Captions, comments and names
+`conteudo.js` holds the 45 display names and, for each image, a caption and 3 comments. A real photo and its AI twin (`real-animais-2` / `ai-animais-2`) share the key `animais-2`, so they get the same text, and the randomiser never puts both twins in the same feed. Edit the text freely. Keep the comments free of anything about authenticity or AI.
 
 ## Notes
 - The quiz wording uses `STAMP_LABEL` from `config.js` ("Feita por humano"). Change it there and both the stamp and the quiz update.

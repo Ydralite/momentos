@@ -28,6 +28,7 @@ import argparse
 import csv
 import json
 import random
+import re
 import sys
 from pathlib import Path
 
@@ -76,9 +77,15 @@ def read_exif(img):
     return (device or None), iso
 
 
-def crop_45(img):
+def crop_45(img, centering=(0.5, 0.5)):
     img = ImageOps.exif_transpose(img).convert("RGB")
-    return ImageOps.fit(img, (W, H), method=Image.LANCZOS, centering=(0.5, 0.5))
+    return ImageOps.fit(img, (W, H), method=Image.LANCZOS, centering=tuple(centering))
+
+
+def pair_key(stem, cat):
+    """real-animais-2 / ai-animais-2 -> animais-2 (gémeas nunca aparecem no mesmo feed)."""
+    m = re.search(r"(\d+)$", stem)
+    return f"{cat}-{m.group(1)}" if m else stem
 
 
 def main():
@@ -101,6 +108,10 @@ def main():
         print("Faltam imagens:\n" + "\n".join(problems))
         sys.exit(1)
 
+    # foco.json opcional na pasta de entrada: {"ai-cidade-1": [0.2, 0.5]} = onde centrar o recorte 4:5
+    focus_file = args.input / "foco.json"
+    focus = json.loads(focus_file.read_text(encoding="utf-8")) if focus_file.exists() else {}
+
     rng = random.Random(args.seed)
     rng.shuffle(files)
 
@@ -113,10 +124,11 @@ def main():
         pid = f"p{i:02d}"
         with Image.open(path) as img:
             device, captured = (None, None) if is_ai else read_exif(img)
-            out = crop_45(img)
+            out = crop_45(img, focus.get(path.stem, (0.5, 0.5)))
         # gravar sem exif/icc/xmp
         out.save(OUT_DIR / f"{pid}.jpg", "JPEG", quality=85, optimize=True, progressive=True)
-        entry = {"id": pid, "file": f"images/{pid}.jpg", "category": cat, "ai": is_ai}
+        entry = {"id": pid, "file": f"images/{pid}.jpg", "src": path.stem, "pair": pair_key(path.stem, cat),
+                 "category": cat, "ai": is_ai}
         if not is_ai:
             entry["device"] = device or "Smartphone"
             entry["captured"] = captured

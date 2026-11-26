@@ -34,10 +34,22 @@
   function colorFor(s) { let h = 0; for (const ch of s) h = (h * 31 + ch.charCodeAt(0)) % 360; return `hsl(${h} 45% 55%)`; }
 
   // ---------- conteúdo (PT-PT) ----------
-  const USERNAMES = ['ana.martins', 'joao.ferreira_', 'rita.sousa', 'migueldcosta', 'ines_lopes', 'tiago.rocha',
+  const CONTENT = window.POST_CONTENT || {};
+  const NAMES_FALLBACK = ['ana.martins', 'joao.ferreira_', 'rita.sousa', 'migueldcosta', 'ines_lopes', 'tiago.rocha',
     'catarina.mp', 'pedro_alves', 'sofia.reis', 'diogo.santos', 'mariana.fc', 'ricardo.pinto', 'beatriz.gomes',
     'andre_mendes', 'carla.nunes', 'nuno.teixeira', 'joana.silva_', 'bruno.moreira', 'leonor.ac', 'hugo.correia',
     'marta.v', 'goncalo.r', 'filipa.dias', 'rui.carvalho', 'teresa.b', 'vasco.lima'];
+  const USERNAMES = (Array.isArray(window.POST_NAMES) && window.POST_NAMES.length >= 12)
+    ? window.POST_NAMES.map(n => String(n).trim()).filter(Boolean) : NAMES_FALLBACK;
+  function initials(name) {
+    const parts = name.replace(/[._]/g, ' ').trim().split(/\s+/);
+    return ((parts[0] || '?')[0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
+  }
+  function contentFor(img) {
+    const c = CONTENT[img.src] || CONTENT[img.pair];
+    if (c && c.caption) return { caption: c.caption, comments: (c.comments || []).slice(0, 3) };
+    return { caption: pick(CAPTIONS[img.category] || ['']), comments: sample(COMMENTS, 3) };
+  }
   const CAPTIONS = {
     animais: ['Domingo preguiçoso 🐾', 'O verdadeiro dono da casa', 'Quem resiste a esta cara?', 'Hora da sesta'],
     comida: ['Jantar de hoje', 'Valeu cada garfada', 'Receita nova, aprovada ✅', 'Mesa posta 😋'],
@@ -86,26 +98,48 @@
   function buildFeed(aiPct, arm) {
     const cats = C.CATEGORIES, per = C.PER_CATEGORY, n = C.POSTS_PER_FEED;
     const nAI = Math.round(n * aiPct / 100);
-    const pool = {};
+    // agrupar por par (real-x-n e ai-x-n): nunca mostrar as duas versões ao mesmo participante
+    const pairs = {};
     for (const c of cats) {
-      pool[c] = {
-        ai: shuffle(MANIFEST.filter(m => m.category === c && m.ai)),
-        real: shuffle(MANIFEST.filter(m => m.category === c && !m.ai))
-      };
+      const groups = {};
+      MANIFEST.filter(m => m.category === c).forEach(m => {
+        const key = m.pair || m.id;
+        (groups[key] = groups[key] || {})[m.ai ? 'ai' : 'real'] = m;
+      });
+      pairs[c] = Object.values(groups);
     }
-    // todas as distribuições válidas de imagens IA por categoria
+    // escolher, por categoria, k pares com versão IA e (per - k) pares com versão real, todos distintos
+    function canFill(c, k) {
+      const ps = pairs[c];
+      const aiOnly = ps.filter(p => p.ai && !p.real).length;
+      const realOnly = ps.filter(p => p.real && !p.ai).length;
+      const both = ps.filter(p => p.ai && p.real).length;
+      // os pares completos cobrem o que falta de cada lado, sem repetir pares
+      return Math.max(0, k - aiOnly) + Math.max(0, per - k - realOnly) <= both;
+    }
     const valid = [];
     (function rec(i, acc, sum) {
       if (i === cats.length) { if (sum === nAI) valid.push(acc.slice()); return; }
       for (let k = 0; k <= per; k++) {
-        if (k > pool[cats[i]].ai.length || per - k > pool[cats[i]].real.length) continue;
+        if (!canFill(cats[i], k)) continue;
         acc.push(k); rec(i + 1, acc, sum + k); acc.pop();
       }
     })(0, [], 0);
     if (!valid.length) throw new Error('Imagens insuficientes no manifest para um feed com ' + aiPct + '% IA.');
     const alloc = pick(valid);
     let imgs = [];
-    cats.forEach((c, i) => { imgs = imgs.concat(pool[c].ai.slice(0, alloc[i]), pool[c].real.slice(0, per - alloc[i])); });
+    cats.forEach((c, i) => {
+      const k = alloc[i];
+      const ps = shuffle(pairs[c].slice());
+      // primeiro os pares que só têm uma versão (para não desperdiçar os completos), depois os completos
+      const aiOnly = ps.filter(p => p.ai && !p.real), realOnly = ps.filter(p => p.real && !p.ai), both = ps.filter(p => p.ai && p.real);
+      const aiPick = aiOnly.slice(0, k);
+      const realPick = realOnly.slice(0, per - k);
+      const rest = both.slice();
+      while (aiPick.length < k) aiPick.push(rest.shift());
+      while (realPick.length < per - k) realPick.push(rest.shift());
+      imgs = imgs.concat(aiPick.map(p => p.ai), realPick.map(p => p.real));
+    });
     shuffle(imgs);
 
     const stamped = new Set();
@@ -116,11 +150,12 @@
     const authors = sample(USERNAMES, imgs.length);
     return imgs.map((img, i) => {
       const others = USERNAMES.filter(u => u !== authors[i]);
-      const nc = 2 + rnd(2);
+      const content = contentFor(img);
+      const commenters = sample(others, content.comments.length);
       return {
         position: i + 1, img, stamp: stamped.has(img.id), user: authors[i],
-        caption: pick(CAPTIONS[img.category] || ['']),
-        comments: sample(COMMENTS, nc).map(t => ({ user: pick(others), text: t, ago: pick(AGO) }))
+        caption: content.caption,
+        comments: content.comments.map((t, j) => ({ user: commenters[j], text: t, ago: pick(AGO) }))
       };
     });
   }
@@ -177,7 +212,7 @@
       const raw = Math.round(liveDwell(i));
       return {
         session_id: S.session_id, test: TEST, feed_ai_pct: a.feed, stamps_arm: a.stamps,
-        position: p.position, image_id: p.img.id, category: p.img.category, is_ai: !!p.img.ai,
+        position: p.position, image_id: p.img.src || p.img.id, category: p.img.category, is_ai: !!p.img.ai,
         stamp_shown: p.stamp, seen: t.seen, views: t.views,
         dwell_ms: Math.min(raw, C.DWELL_CAP_MS), dwell_raw_ms: raw,
         first_seen_s: t.first_seen_s, liked: t.liked, like_toggles: t.like_toggles,
@@ -199,6 +234,7 @@
         comments_opened: posts.reduce((s, p) => s + p.comments_opened, 0),
         stamp_taps: posts.reduce((s, p) => s + p.stamp_taps, 0),
         quiz_completed: S.quizDone,
+        q0_quantas_ia: S.quiz.q0 || '', ai_real: S.posts.filter(p => p.img.ai).length,
         q1_sem_selo: S.quiz.q1 || '', q2_quer_selo: S.quiz.q2 || '', q3_confianca: S.quiz.q3 || '',
         q4_ver_origem: S.quiz.q4 || '', q5_texto: S.quiz.q5 || '',
         device: (matchMedia('(pointer: coarse)').matches ? 'touch' : 'desktop'),
@@ -255,7 +291,7 @@
       const inner = el('div', 'post-inner');
 
       const head = el('header', 'post-head');
-      const av = el('div', 'avatar', p.user[0].toUpperCase()); av.style.background = colorFor(p.user);
+      const av = el('div', 'avatar', initials(p.user)); av.style.background = colorFor(p.user);
       const who = el('div', 'who');
       who.appendChild(el('div', 'uname', p.user));
       if (p.stamp) {
@@ -295,7 +331,7 @@
     const end = el('section', 'end-card'); end.dataset.end = '1';
     const card = el('div', 'card');
     card.appendChild(el('h2', null, 'Chegaste ao fim do feed 🎉'));
-    card.appendChild(el('p', null, 'Faltam só 5 perguntas rápidas.'));
+    card.appendChild(el('p', null, 'Faltam só 6 perguntas rápidas.'));
     const btn = el('button', 'btn primary', 'Continuar'); btn.type = 'button';
     btn.addEventListener('click', startQuiz);
     card.appendChild(btn);
@@ -357,7 +393,7 @@
     openSheet('comments', i, 'Comentários', (body) => {
       p.comments.forEach(c => {
         const row = el('div', 'comment');
-        const av = el('div', 'avatar', c.user[0].toUpperCase()); av.style.background = colorFor(c.user);
+        const av = el('div', 'avatar', initials(c.user)); av.style.background = colorFor(c.user);
         const txt = el('div');
         const line = el('div', 'comment-text'); line.appendChild(el('b', null, c.user)); line.appendChild(document.createTextNode(c.text));
         txt.append(line, el('div', 'comment-meta', c.ago));
@@ -462,6 +498,8 @@
 
   // ---------- questionário ----------
   const QUESTIONS = [
+    { id: 'q0', type: 'number', max: () => S.posts.length, thenIntro: true,
+      text: () => `Antes de mais: das ${S.posts.length} imagens que acabaste de ver, quantas achas que foram geradas por IA?` },
     { id: 'q1', type: 'choice', text: 'Uma fotografia sem selo PHOTO SAFE é…', shuffleFirst: 3,
       options: [['provavelmente_falsa', 'Provavelmente falsa ou manipulada'], ['gerada_ia', 'Provavelmente gerada por IA'],
         ['nao_verificada', 'Não verificada — pode ser real ou gerada por IA'], ['nao_sei', 'Não sei']] },
@@ -481,19 +519,19 @@
     if (S._io) S._io.disconnect();
     S.stage = 'quiz';
     sendNow();
-    renderQuizIntro();
+    renderQuestion(0);
     show('screen-quiz');
   }
 
-  function renderQuizIntro() {
+  function renderQuizIntro(nextK) {
     const card = $('#quiz-card'); card.textContent = '';
-    card.appendChild(el('div', 'quiz-progress', 'Última parte'));
+    card.appendChild(el('div', 'quiz-progress', 'Antes das próximas perguntas'));
     card.appendChild(el('h2', null, 'O que é o PHOTO SAFE?'));
     card.appendChild(el('p', null, 'O PHOTO SAFE é uma proposta para mostrar a origem das imagens nas redes sociais. Quando uma fotografia tem uma credencial verificável — por exemplo, foi captada por uma câmara e não foi alterada — aparece um selo como este:'));
     const demo = el('div', 'stamp-demo'); demo.appendChild(stampEl(true)); card.appendChild(demo);
     card.appendChild(el('p', null, 'O selo mostra de onde vem a imagem. Não garante que aquilo que ela mostra é verdade.'));
-    const b = el('button', 'btn primary', 'Responder às perguntas'); b.type = 'button';
-    b.addEventListener('click', () => renderQuestion(0));
+    const b = el('button', 'btn primary', 'Continuar'); b.type = 'button';
+    b.addEventListener('click', () => renderQuestion(nextK));
     card.appendChild(b);
   }
 
@@ -502,9 +540,28 @@
     const card = $('#quiz-card'); card.textContent = '';
     card.appendChild(el('div', 'quiz-progress', `Pergunta ${k + 1} de ${QUESTIONS.length}`));
     card.appendChild(el('h2', null, typeof q.text === 'function' ? q.text() : q.text));
-    const next = () => { sendSoon(150); k + 1 < QUESTIONS.length ? renderQuestion(k + 1) : finish(); };
+    const next = () => {
+      sendSoon(150);
+      if (k + 1 >= QUESTIONS.length) finish();
+      else if (q.thenIntro) renderQuizIntro(k + 1);
+      else renderQuestion(k + 1);
+    };
 
-    if (q.type === 'choice') {
+    if (q.type === 'number') {
+      const g = el('div', 'choice-group num-grid');
+      const max = typeof q.max === 'function' ? q.max() : q.max;
+      for (let v = 0; v <= max; v++) {
+        const b = el('button', 'choice', String(v)); b.type = 'button';
+        if (S.quiz[q.id] === String(v)) b.classList.add('selected');
+        b.addEventListener('click', () => {
+          S.quiz[q.id] = String(v);
+          g.querySelectorAll('.choice').forEach(x => x.classList.toggle('selected', x === b));
+          setTimeout(next, 220);
+        });
+        g.appendChild(b);
+      }
+      card.appendChild(g);
+    } else if (q.type === 'choice') {
       const g = el('div', 'choice-group');
       // baralhar a ordem das primeiras opções (uma vez por pessoa) para evitar viés de posição
       if (q.shuffleFirst && !q._order) q._order = shuffle(q.options.slice(0, q.shuffleFirst)).concat(q.options.slice(q.shuffleFirst));
@@ -546,6 +603,11 @@
     const likedReal = S.posts.filter((p, i) => !p.img.ai && S.track[i].liked).length;
     card.appendChild(el('h1', null, 'Obrigado por participares! 🙏'));
     card.appendChild(el('p', 'reveal-stat', `Das ${S.posts.length} imagens que viste, ${nAI} foram geradas por IA.`));
+    if (S.quiz.q0 !== undefined && S.quiz.q0 !== '') {
+      const g = Number(S.quiz.q0), d = Math.abs(g - nAI);
+      card.appendChild(el('p', null, d === 0 ? `Achavas que eram ${g}. Acertaste em cheio! 🎯`
+        : `Achavas que eram ${g}. Falhaste por ${d}.`));
+    }
     card.appendChild(el('p', null, `Deste gosto a ${likedAI} ${likedAI === 1 ? 'imagem gerada' : 'imagens geradas'} por IA e a ${likedReal} ${likedReal === 1 ? 'fotografia real' : 'fotografias reais'}.`));
     const grid = el('div', 'reveal-grid');
     S.posts.forEach((p, i) => {
@@ -593,5 +655,6 @@
     profBtn.addEventListener('click', startFeed);
   }
 
+  if (DEBUG) window.__buildFeed = buildFeed; // só para testes
   boot();
 })();

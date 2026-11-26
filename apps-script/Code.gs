@@ -21,7 +21,8 @@ var PARTICIPANT_HEADERS = [
   'age_band', 'social_time',
   'posts_seen', 'feed_completed', 'feed_ms', 'likes', 'likes_ai', 'likes_real', 'comments_opened', 'stamp_taps',
   'quiz_completed', 'q1_sem_selo', 'q2_quer_selo', 'q3_confianca', 'q4_ver_origem', 'q5_texto',
-  'device', 'viewport', 'user_agent', 'started_at'
+  'device', 'viewport', 'user_agent', 'started_at',
+  'q0_quantas_ia', 'ai_real'   // acrescentadas na v2: estimativa da pessoa vs. nº real de imagens IA
 ];
 
 var POST_HEADERS = [
@@ -134,6 +135,10 @@ function sheet_(ss, name, headers) {
   if (sh.getLastRow() === 0) {
     sh.getRange(1, 1, 1, headers.length).setValues([headers]);
     sh.setFrozenRows(1);
+  } else {
+    // acrescenta colunas novas ao cabeçalho de uma folha já existente
+    var cur = sh.getRange(1, 1, 1, headers.length).getValues()[0];
+    if (cur.join('|') !== headers.join('|')) sh.getRange(1, 1, 1, headers.length).setValues([headers]);
   }
   return sh;
 }
